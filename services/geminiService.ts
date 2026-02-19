@@ -1,16 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Patient, AIAnalysisResult, Vitals, ReportExtractionResult, Medication, PatientSummary, ReportImage, DoctorInstruction, NurseTask } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-// Initialize specific model
-const ai = new GoogleGenAI({ apiKey });
+// Initialize Gemini only when a key is present.
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const analyzePatientVitals = async (
   patient: Patient,
   latestVitals: Vitals
 ): Promise<AIAnalysisResult> => {
-  if (!apiKey) {
+  if (!apiKey || !ai) {
     // Fallback if no API key is present for demo purposes
     console.warn("No API Key found. Returning mock analysis.");
     return {
@@ -76,7 +76,7 @@ export const analyzePatientVitals = async (
 
 
 export const extractReportData = async (imageDataUrl: string): Promise<ReportExtractionResult> => {
-  if (!apiKey) {
+  if (!apiKey || !ai) {
     console.warn("No API Key found. Returning mock extraction.");
     return {
       medications: [],
@@ -177,7 +177,7 @@ export const extractReportData = async (imageDataUrl: string): Promise<ReportExt
 
 
 export const generatePatientSummary = async (patient: Patient): Promise<PatientSummary> => {
-  if (!apiKey) {
+  if (!apiKey || !ai) {
     console.warn("No API Key found. Returning mock summary.");
     return {
       overview: `${patient.name} is a ${patient.age}-year-old ${patient.gender.toLowerCase()} with ${patient.condition}. Currently in ${patient.room}. (API key required for detailed AI summary)`,
