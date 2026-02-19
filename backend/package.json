@@ -7,13 +7,22 @@
   "scripts": {
     "start": "node server-simple.js",
     "dev": "node --watch server-simple.js",
-    "seed": "node seed-simple.js"
+    "seed": "node seed-simple.js",
+    "chain:compile": "hardhat compile --config blockchain/hardhat.config.cjs",
+    "chain:node": "hardhat node --config blockchain/hardhat.config.cjs",
+    "chain:deploy:local": "hardhat run blockchain/scripts/deploy.cjs --network localhost --config blockchain/hardhat.config.cjs",
+    "chain:deploy:sepolia": "hardhat run blockchain/scripts/deploy.cjs --network sepolia --config blockchain/hardhat.config.cjs"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
     "@google/genai": "^1.38.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "lowdb": "^7.0.1"
+    "ethers": "^6.13.4",
+    "express": "^4.18.2",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.28.6"
   }
 }

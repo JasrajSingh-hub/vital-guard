@@ -35,7 +35,7 @@ A modern healthcare management system for hospitals to monitor patient vitals, m
 
 ### Backend
 - **Node.js** with Express
-- **lowdb** for local JSON database (no build tools required)
+- **MongoDB** for persistent data storage
 - **Google Gemini AI** for clinical analysis and summaries
 - **CORS** enabled for frontend-backend communication
 
@@ -69,7 +69,8 @@ Create `backend/.env`:
 ```env
 PORT=5000
 GEMINI_API_KEY=your_gemini_api_key_here
-DATABASE_PATH=vitalguard.json
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB_NAME=vitalguard
 ```
 
 5. Seed the database with sample data
@@ -137,12 +138,11 @@ Frontend runs on `http://localhost:5173`
 ```
 vitalguard-ai/
 ├── backend/
-│   ├── database-simple.js      # Database operations
+│   ├── database-simple.js      # MongoDB operations
 │   ├── geminiService.js        # AI integration
 │   ├── seed-simple.js          # Sample data seeder
 │   ├── server-simple.js        # Express API server
 │   ├── package.json
-│   └── vitalguard.json         # JSON database (generated)
 ├── components/                 # React components
 ├── pages/                      # Page components
 ├── services/
@@ -189,7 +189,7 @@ vitalguard-ai/
 
 ## Data Persistence
 
-All patient data is stored in `backend/vitalguard.json` and persists across server restarts. The database includes:
+All patient data is stored in MongoDB and persists across server restarts. The database includes:
 - Patient demographics and status
 - Vitals history
 - Medications

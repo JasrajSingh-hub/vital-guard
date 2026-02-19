@@ -1,95 +1,134 @@
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { MongoClient } from 'mongodb';
+import 'dotenv/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let client = null;
+let db = null;
 
-const dbPath = process.env.DATABASE_PATH || join(__dirname, 'vitalguard.json');
+const COLLECTIONS = [
+  'patients',
+  'vitals',
+  'medications',
+  'doctor_instructions',
+  'nurse_tasks',
+  'messages',
+  'reports',
+  'ai_summaries',
+  'discharge_reports'
+];
 
-// Default database structure
-const defaultData = {
-  patients: [],
-  vitals: [],
-  medications: [],
-  doctor_instructions: [],
-  nurse_tasks: [],
-  messages: [],
-  reports: [],
-  ai_summaries: [],
-  discharge_reports: []
-};
-
-let db;
-
-// Initialize database
-export async function initializeDatabase() {
-  const adapter = new JSONFile(dbPath);
-  db = new Low(adapter, defaultData);
-  
-  await db.read();
-  
-  // Initialize with default data if empty
-  if (!db.data || Object.keys(db.data).length === 0) {
-    db.data = defaultData;
-    await db.write();
+function getCollection(table) {
+  if (!db) {
+    throw new Error('Database not initialized. Call initializeDatabase() first.');
   }
-  
-  console.log('✅ Database initialized successfully');
+  return db.collection(table);
+}
+
+export async function initializeDatabase() {
+  if (db) {
+    return db;
+  }
+
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
+  const dbName = process.env.MONGODB_DB_NAME || 'vitalguard';
+
+  client = new MongoClient(mongoUri);
+  await client.connect();
+  db = client.db(dbName);
+
+  const existing = await db.listCollections().toArray();
+  const existingNames = new Set(existing.map(c => c.name));
+
+  for (const name of COLLECTIONS) {
+    if (!existingNames.has(name)) {
+      await db.createCollection(name);
+    }
+  }
+
+  await db.collection('patients').createIndex({ patient_id: 1 }, { unique: true });
+  await db.collection('vitals').createIndex({ vital_id: 1 }, { unique: true });
+  await db.collection('medications').createIndex({ medication_id: 1 }, { unique: true });
+  await db.collection('doctor_instructions').createIndex({ instruction_id: 1 }, { unique: true });
+  await db.collection('nurse_tasks').createIndex({ task_id: 1 }, { unique: true });
+  await db.collection('messages').createIndex({ message_id: 1 }, { unique: true });
+  await db.collection('reports').createIndex({ report_id: 1 }, { unique: true });
+  await db.collection('ai_summaries').createIndex({ summary_id: 1 }, { unique: true });
+  await db.collection('discharge_reports').createIndex({ report_id: 1 }, { unique: true });
+
+  console.log('Database initialized successfully (MongoDB)');
   return db;
 }
 
-// Helper functions
 export function getDb() {
   return db;
 }
 
-export async function saveDb() {
-  await db.write();
-}
-
-// Query helpers
-export function findAll(table) {
-  return db.data[table] || [];
-}
-
-export function findOne(table, predicate) {
-  return db.data[table]?.find(predicate) || null;
-}
-
-export function findMany(table, predicate) {
-  return db.data[table]?.filter(predicate) || [];
-}
-
-export function insert(table, item) {
-  if (!db.data[table]) {
-    db.data[table] = [];
+export async function closeDatabase() {
+  if (client) {
+    await client.close();
+    client = null;
+    db = null;
   }
-  db.data[table].push(item);
+}
+
+export async function saveDb() {
+  // No-op for MongoDB. Kept for API compatibility.
+}
+
+export async function findAll(table) {
+  const collection = getCollection(table);
+  return collection.find({}, { projection: { _id: 0 } }).toArray();
+}
+
+export async function findOne(table, filter) {
+  const collection = getCollection(table);
+  return collection.findOne(filter, { projection: { _id: 0 } });
+}
+
+export async function findMany(table, filter = {}, options = {}) {
+  const collection = getCollection(table);
+  const cursor = collection.find(filter, { projection: { _id: 0 } });
+
+  if (options.sort) {
+    cursor.sort(options.sort);
+  }
+  if (typeof options.limit === 'number') {
+    cursor.limit(options.limit);
+  }
+
+  return cursor.toArray();
+}
+
+export async function insert(table, item) {
+  const collection = getCollection(table);
+  await collection.insertOne(item);
   return item;
 }
 
-export function update(table, predicate, updates) {
-  const index = db.data[table]?.findIndex(predicate);
-  if (index !== -1) {
-    db.data[table][index] = { ...db.data[table][index], ...updates };
-    return db.data[table][index];
+export async function update(table, filter, updates) {
+  const collection = getCollection(table);
+  const existing = await collection.findOne(filter, { projection: { _id: 0 } });
+  if (!existing) {
+    return null;
   }
-  return null;
+
+  await collection.updateOne(filter, { $set: updates });
+  return { ...existing, ...updates };
 }
 
-export function remove(table, predicate) {
-  const index = db.data[table]?.findIndex(predicate);
-  if (index !== -1) {
-    const removed = db.data[table].splice(index, 1);
-    return removed[0];
+export async function remove(table, filter) {
+  const collection = getCollection(table);
+  const existing = await collection.findOne(filter, { projection: { _id: 0 } });
+  if (!existing) {
+    return null;
   }
-  return null;
+
+  await collection.deleteOne(filter);
+  return existing;
 }
 
 export default {
   initializeDatabase,
+  closeDatabase,
   getDb,
   saveDb,
   findAll,
