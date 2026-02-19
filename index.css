@@ -1,4 +1,11 @@
-/* VitalGuard AI - Global Styles */
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --border: #cbd5e1;
+  --focus: #334155;
+}
 
 * {
   margin: 0;
@@ -6,45 +13,44 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+  color: var(--text);
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #e2e8f0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #64748b;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #475569;
 }
 
-/* Animation utilities */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -53,10 +59,9 @@ html {
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.25s ease-in-out;
 }
 
-/* Line clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -71,22 +76,19 @@ html {
   overflow: hidden;
 }
 
-/* Focus styles */
 button:focus,
 input:focus,
 textarea:focus,
 select:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-/* Disabled state */
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-/* Print styles */
 @media print {
   .no-print {
     display: none !important;

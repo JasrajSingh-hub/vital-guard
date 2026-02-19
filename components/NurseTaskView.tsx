@@ -142,7 +142,7 @@ const NurseTaskView: React.FC<NurseTaskViewProps> = ({ patient, currentUser, onT
       )}
 
       {/* Upload Report Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border-2 border-blue-300 p-4">
+      <div className="bg-slate-50 rounded-lg border border-slate-300 p-4">
         <div className="flex items-start">
           <FileText className="w-6 h-6 text-blue-600 mr-3 mt-0.5" />
           <div className="flex-1">

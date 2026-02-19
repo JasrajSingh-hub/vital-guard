@@ -353,15 +353,15 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
       </div>
 
       {/* Doctor Instructions Section */}
-      <div className="bg-white rounded-lg shadow-sm border-2 border-purple-300 p-6">
+      <div className="bg-white rounded-lg shadow-sm border-2 border-slate-300 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <ClipboardList className="w-5 h-5 mr-2 text-purple-500" />
+            <ClipboardList className="w-5 h-5 mr-2 text-slate-600" />
             Doctor Instructions
           </h3>
           <button
             onClick={() => setShowInstructionForm(!showInstructionForm)}
-            className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+            className="flex items-center px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-semibold"
           >
             <Plus className="w-4 h-4 mr-1" />
             Add Instruction
@@ -370,7 +370,7 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
 
         {/* Add Instruction Form */}
         {showInstructionForm && (
-          <form onSubmit={handleAddInstruction} className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <form onSubmit={handleAddInstruction} className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Instruction *</label>
@@ -409,7 +409,7 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
               </div>
             </div>
             <div className="flex space-x-2 mt-3">
-              <button type="submit" className="px-3 py-1 bg-purple-600 text-white rounded text-sm font-semibold hover:bg-purple-700">
+              <button type="submit" className="px-3 py-1 bg-slate-700 text-white rounded text-sm font-semibold hover:bg-slate-800">
                 Add
               </button>
               <button type="button" onClick={() => setShowInstructionForm(false)} className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400">

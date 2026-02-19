@@ -1,16 +1,35 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Patient, AIAnalysisResult, Vitals, ReportExtractionResult, Medication, PatientSummary, ReportImage, DoctorInstruction, NurseTask } from "../types";
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const viteEnvKey =
+  typeof import.meta !== 'undefined' && (import.meta as any).env
+    ? (import.meta as any).env.VITE_API_KEY || (import.meta as any).env.API_KEY
+    : '';
+const nodeEnvKey =
+  typeof process !== 'undefined' && (process as any).env
+    ? (process as any).env.API_KEY
+    : '';
+const apiKey = viteEnvKey || nodeEnvKey || '';
 
-// Initialize Gemini only when a key is present.
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+let aiClient: GoogleGenAI | null = null;
+const getAiClient = (): GoogleGenAI | null => {
+  if (!apiKey) return null;
+  if (aiClient) return aiClient;
+  try {
+    aiClient = new GoogleGenAI({ apiKey });
+    return aiClient;
+  } catch (error) {
+    console.error('Failed to initialize GoogleGenAI client:', error);
+    return null;
+  }
+};
 
 export const analyzePatientVitals = async (
   patient: Patient,
   latestVitals: Vitals
 ): Promise<AIAnalysisResult> => {
-  if (!apiKey || !ai) {
+  const ai = getAiClient();
+  if (!ai) {
     // Fallback if no API key is present for demo purposes
     console.warn("No API Key found. Returning mock analysis.");
     return {
@@ -76,7 +95,8 @@ export const analyzePatientVitals = async (
 
 
 export const extractReportData = async (imageDataUrl: string): Promise<ReportExtractionResult> => {
-  if (!apiKey || !ai) {
+  const ai = getAiClient();
+  if (!ai) {
     console.warn("No API Key found. Returning mock extraction.");
     return {
       medications: [],
@@ -177,7 +197,8 @@ export const extractReportData = async (imageDataUrl: string): Promise<ReportExt
 
 
 export const generatePatientSummary = async (patient: Patient): Promise<PatientSummary> => {
-  if (!apiKey || !ai) {
+  const ai = getAiClient();
+  if (!ai) {
     console.warn("No API Key found. Returning mock summary.");
     return {
       overview: `${patient.name} is a ${patient.age}-year-old ${patient.gender.toLowerCase()} with ${patient.condition}. Currently in ${patient.room}. (API key required for detailed AI summary)`,

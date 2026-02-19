@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Patient, PatientSummary } from '../types';
-import { Sparkles, Loader2, FileText, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, FileText, TrendingUp, AlertCircle, RefreshCw, Gauge } from 'lucide-react';
 import { generatePatientSummary } from '../services/geminiService';
 
 interface AIPatientSummaryProps {
@@ -12,6 +12,9 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
   const [summary, setSummary] = useState<PatientSummary | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const latest = patient.history[patient.history.length - 1];
+  const riskScore = patient.riskLevel === 'CRITICAL' ? 90 : patient.riskLevel === 'ATTENTION' ? 60 : 30;
 
   useEffect(() => {
     if (autoGenerate) {
@@ -35,19 +38,19 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
   };
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg shadow-sm border-2 border-purple-200 p-4 h-full flex flex-col">
+    <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-300 p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
-          <h3 className="text-base font-bold text-gray-900">AI-Assisted Patient Overview</h3>
-          <span className="ml-2 px-2 py-0.5 bg-purple-200 text-purple-800 text-xs font-bold rounded">
-            READ ONLY
+          <Sparkles className="w-5 h-5 mr-2 text-teal-700" />
+          <h3 className="text-base font-bold text-slate-900">AI-Assisted Patient Overview</h3>
+          <span className="ml-2 px-2 py-0.5 bg-teal-100 text-teal-800 text-xs font-bold rounded">
+            AI-GENERATED
           </span>
         </div>
         {!isGenerating && summary && (
           <button
             onClick={handleGenerateSummary}
-            className="text-purple-600 hover:text-purple-700 transition-colors"
+            className="text-teal-700 hover:text-teal-800 transition-colors"
             title="Refresh summary"
           >
             <RefreshCw className="w-4 h-4" />
@@ -55,9 +58,32 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
         )}
       </div>
 
-      <div className="mb-2 p-2 bg-purple-100 border border-purple-300 rounded-lg">
-        <p className="text-xs text-purple-900 font-semibold">
-          ⚠️ AI-GENERATED: This summary is descriptive only and does not provide diagnosis or treatment decisions.
+      <div className="mb-2 p-2 bg-sky-50 border border-sky-200 rounded-lg">
+        <p className="text-xs text-sky-900 font-semibold">
+          AI-GENERATED: This summary is descriptive only and does not provide diagnosis or treatment decisions.
+        </p>
+      </div>
+
+      <div className="mb-3 p-3 bg-white rounded-lg border border-slate-200">
+        <div className="flex items-center text-xs text-slate-600">
+          <Gauge className="w-3 h-3 mr-1" />
+          Risk Meter
+        </div>
+        <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
+          <div
+            className={`h-full ${
+              patient.riskLevel === 'CRITICAL'
+                ? 'bg-red-600'
+                : patient.riskLevel === 'ATTENTION'
+                ? 'bg-amber-500'
+                : 'bg-emerald-600'
+            }`}
+            style={{ width: `${riskScore}%`, transition: 'width 0.5s ease' }}
+          />
+        </div>
+        <p className="text-xs text-slate-700 mt-2">
+          {patient.riskLevel} ({riskScore}%)
+          {latest && latest.spO2 < 92 && ' | Abnormal SpO2 detected'}
         </p>
       </div>
 
@@ -70,34 +96,32 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
       {isGenerating ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 text-purple-600 animate-spin mx-auto mb-2" />
-            <span className="text-sm text-gray-600">Generating AI overview...</span>
+            <Loader2 className="w-8 h-8 text-teal-700 animate-spin mx-auto mb-2" />
+            <span className="text-sm text-slate-600">Generating AI overview...</span>
           </div>
         </div>
       ) : summary ? (
         <div className="flex-1 overflow-y-auto space-y-2">
-          {/* Overview */}
-          <div className="p-3 bg-white rounded-lg border border-purple-200">
+          <div className="p-3 bg-white rounded-lg border border-slate-200">
             <div className="flex items-start">
-              <FileText className="w-4 h-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-teal-700 mr-2 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-semibold text-sm text-gray-900 mb-1">Overview</h4>
-                <p className="text-xs text-gray-700 leading-relaxed">{summary.overview}</p>
+                <h4 className="font-semibold text-sm text-slate-900 mb-1">Overview</h4>
+                <p className="text-xs text-slate-700 leading-relaxed">{summary.overview}</p>
               </div>
             </div>
           </div>
 
-          {/* Key Points */}
           {summary.keyPoints.length > 0 && (
             <div className="p-3 bg-white rounded-lg border border-blue-200">
               <div className="flex items-start">
-                <AlertCircle className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 text-blue-700 mr-2 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-sm text-gray-900 mb-1">Key Points</h4>
+                  <h4 className="font-semibold text-sm text-slate-900 mb-1">Key Points</h4>
                   <ul className="space-y-0.5">
                     {summary.keyPoints.map((point, idx) => (
-                      <li key={idx} className="text-xs text-gray-700 flex items-start">
-                        <span className="mr-1">•</span>
+                      <li key={idx} className="text-xs text-slate-700 flex items-start">
+                        <span className="mr-1">-</span>
                         <span>{point}</span>
                       </li>
                     ))}
@@ -107,17 +131,16 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
             </div>
           )}
 
-          {/* Recent Changes */}
           {summary.recentChanges.length > 0 && (
-            <div className="p-3 bg-white rounded-lg border border-yellow-200">
+            <div className="p-3 bg-white rounded-lg border border-amber-200">
               <div className="flex items-start">
-                <TrendingUp className="w-4 h-4 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
+                <TrendingUp className="w-4 h-4 text-amber-700 mr-2 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-sm text-gray-900 mb-1">Recent Changes</h4>
+                  <h4 className="font-semibold text-sm text-slate-900 mb-1">Recent Changes</h4>
                   <ul className="space-y-0.5">
                     {summary.recentChanges.map((change, idx) => (
-                      <li key={idx} className="text-xs text-gray-700 flex items-start">
-                        <span className="mr-1">•</span>
+                      <li key={idx} className="text-xs text-slate-700 flex items-start">
+                        <span className="mr-1">-</span>
                         <span>{change}</span>
                       </li>
                     ))}
@@ -127,17 +150,16 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
             </div>
           )}
 
-          {/* Recommendations */}
           {summary.recommendations.length > 0 && (
-            <div className="p-3 bg-white rounded-lg border border-green-200">
+            <div className="p-3 bg-white rounded-lg border border-emerald-200">
               <div className="flex items-start">
-                <Sparkles className="w-4 h-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-4 h-4 text-emerald-700 mr-2 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-sm text-gray-900 mb-1">Care Considerations</h4>
+                  <h4 className="font-semibold text-sm text-slate-900 mb-1">Care Considerations</h4>
                   <ul className="space-y-0.5">
                     {summary.recommendations.map((rec, idx) => (
-                      <li key={idx} className="text-xs text-gray-700 flex items-start">
-                        <span className="mr-1">•</span>
+                      <li key={idx} className="text-xs text-slate-700 flex items-start">
+                        <span className="mr-1">-</span>
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -147,14 +169,14 @@ const AIPatientSummary: React.FC<AIPatientSummaryProps> = ({ patient, autoGenera
             </div>
           )}
 
-          <div className="text-xs text-gray-500 italic text-center pt-1 border-t border-purple-200">
-            Auto-generated at {new Date().toLocaleString()} • AI-assisted, not a medical diagnosis
+          <div className="text-xs text-slate-500 italic text-center pt-1 border-t border-slate-200">
+            Auto-generated at {new Date().toLocaleString()} | AI-assisted, not a medical diagnosis
           </div>
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-gray-500">
-            <Sparkles className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+          <div className="text-center text-slate-500">
+            <Sparkles className="w-10 h-10 mx-auto mb-2 text-slate-400" />
             <p className="text-xs">AI overview will generate automatically</p>
           </div>
         </div>
