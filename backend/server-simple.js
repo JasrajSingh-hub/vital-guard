@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, findAll, findOne, findMany, insert, update, remove, saveDb } from './database-simple.js';
 import { generatePatientSummary, generateDischargeSummary, analyzeVitals } from './geminiService.js';
+import { grantPatientConsent, storeEncryptedRecordHash, verifyEncryptedRecordHash } from './blockchainService.js';
 
 dotenv.config();
 
@@ -24,7 +25,7 @@ const generateId = () => Date.now().toString() + Math.random().toString(36).subs
 // Get all active patients
 app.get('/api/patients', async (req, res) => {
   try {
-    const patients = findMany('patients', p => p.active === 1);
+    const patients = await findMany('patients', { active: 1 });
     patients.sort((a, b) => new Date(b.admission_time) - new Date(a.admission_time));
     res.json({ success: true, data: patients });
   } catch (error) {
@@ -35,7 +36,7 @@ app.get('/api/patients', async (req, res) => {
 // Get all discharged patients
 app.get('/api/patients/discharged', async (req, res) => {
   try {
-    const patients = findMany('patients', p => p.active === 0);
+    const patients = await findMany('patients', { active: 0 });
     patients.sort((a, b) => new Date(b.discharge_time) - new Date(a.discharge_time));
     res.json({ success: true, data: patients });
   } catch (error) {
@@ -48,18 +49,24 @@ app.get('/api/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const patient = findOne('patients', p => p.patient_id === id);
+    const patient = await findOne('patients', { patient_id: id });
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
     
-    const vitals = findMany('vitals', v => v.patient_id === id).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const medications = findMany('medications', m => m.patient_id === id && m.status === 'active');
-    const instructions = findMany('doctor_instructions', i => i.patient_id === id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    const tasks = findMany('nurse_tasks', t => t.patient_id === id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    const messages = findMany('messages', m => m.patient_id === id).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const reports = findMany('reports', r => r.patient_id === id).sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
-    const summaries = findMany('ai_summaries', s => s.patient_id === id).sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
+    const vitals = await findMany('vitals', { patient_id: id });
+    vitals.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const medications = await findMany('medications', { patient_id: id, status: 'active' });
+    const instructions = await findMany('doctor_instructions', { patient_id: id });
+    instructions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const tasks = await findMany('nurse_tasks', { patient_id: id });
+    tasks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const messages = await findMany('messages', { patient_id: id });
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const reports = await findMany('reports', { patient_id: id });
+    reports.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
+    const summaries = await findMany('ai_summaries', { patient_id: id });
+    summaries.sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
     const latestSummary = summaries[0] || null;
     
     res.json({
@@ -103,7 +110,7 @@ app.post('/api/patients', async (req, res) => {
       updated_at: new Date().toISOString()
     };
     
-    insert('patients', patient);
+    await insert('patients', patient);
     await saveDb();
     
     res.json({ success: true, data: patient });
@@ -118,7 +125,7 @@ app.put('/api/patients/:id', async (req, res) => {
     const { id } = req.params;
     const { name, age, gender, room, condition, diagnosis, status, notes } = req.body;
     
-    const updated = update('patients', p => p.patient_id === id, {
+    const updated = await update('patients', { patient_id: id }, {
       name,
       age,
       gender,
@@ -162,14 +169,14 @@ app.post('/api/patients/:id/vitals', async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    insert('vitals', vital);
+    await insert('vitals', vital);
     
     // Analyze vitals with AI
-    const patient = findOne('patients', p => p.patient_id === id);
+    const patient = await findOne('patients', { patient_id: id });
     const analysis = await analyzeVitals(patient, { heart_rate, systolic_bp, diastolic_bp, spo2, temperature, respiratory_rate });
     
     // Update patient status
-    update('patients', p => p.patient_id === id, {
+    await update('patients', { patient_id: id }, {
       status: analysis.riskLevel,
       updated_at: new Date().toISOString()
     });
@@ -204,7 +211,7 @@ app.post('/api/patients/:id/medications', async (req, res) => {
       created_at: new Date().toISOString()
     };
     
-    insert('medications', medication);
+    await insert('medications', medication);
     await saveDb();
     
     res.json({ success: true, data: medication });
@@ -218,7 +225,7 @@ app.delete('/api/medications/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    remove('medications', m => m.medication_id === id);
+    await remove('medications', { medication_id: id });
     await saveDb();
     
     res.json({ success: true, message: 'Medication deleted' });
@@ -247,7 +254,7 @@ app.post('/api/patients/:id/instructions', async (req, res) => {
       completed_at: null
     };
     
-    insert('doctor_instructions', instruction);
+    await insert('doctor_instructions', instruction);
     await saveDb();
     
     res.json({ success: true, data: instruction });
@@ -261,7 +268,7 @@ app.delete('/api/instructions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    remove('doctor_instructions', i => i.instruction_id === id);
+    await remove('doctor_instructions', { instruction_id: id });
     await saveDb();
     
     res.json({ success: true, message: 'Instruction deleted' });
@@ -291,7 +298,7 @@ app.post('/api/patients/:id/tasks', async (req, res) => {
       completed_by: null
     };
     
-    insert('nurse_tasks', task);
+    await insert('nurse_tasks', task);
     await saveDb();
     
     res.json({ success: true, data: task });
@@ -306,7 +313,7 @@ app.put('/api/tasks/:id/complete', async (req, res) => {
     const { id } = req.params;
     const { completed_by } = req.body;
     
-    const updated = update('nurse_tasks', t => t.task_id === id, {
+    const updated = await update('nurse_tasks', { task_id: id }, {
       status: 'completed',
       completed_at: new Date().toISOString(),
       completed_by
@@ -341,7 +348,7 @@ app.post('/api/patients/:id/messages', async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    insert('messages', message);
+    await insert('messages', message);
     await saveDb();
     
     res.json({ success: true, data: message });
@@ -368,7 +375,7 @@ app.post('/api/patients/:id/reports', async (req, res) => {
       uploaded_at: new Date().toISOString()
     };
     
-    insert('reports', report);
+    await insert('reports', report);
     await saveDb();
     
     res.json({ success: true, data: report });
@@ -382,7 +389,7 @@ app.delete('/api/reports/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    remove('reports', r => r.report_id === id);
+    await remove('reports', { report_id: id });
     await saveDb();
     
     res.json({ success: true, message: 'Report deleted' });
@@ -398,20 +405,22 @@ app.post('/api/patients/:id/summary', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const patient = findOne('patients', p => p.patient_id === id);
+    const patient = await findOne('patients', { patient_id: id });
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
     
-    const vitals = findMany('vitals', v => v.patient_id === id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
-    const medications = findMany('medications', m => m.patient_id === id && m.status === 'active');
-    const instructions = findMany('doctor_instructions', i => i.patient_id === id);
-    const tasks = findMany('nurse_tasks', t => t.patient_id === id);
-    const reports = findMany('reports', r => r.patient_id === id);
+    const vitals = await findMany('vitals', { patient_id: id });
+    vitals.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const recentVitals = vitals.slice(0, 10);
+    const medications = await findMany('medications', { patient_id: id, status: 'active' });
+    const instructions = await findMany('doctor_instructions', { patient_id: id });
+    const tasks = await findMany('nurse_tasks', { patient_id: id });
+    const reports = await findMany('reports', { patient_id: id });
     
     const patientData = {
       ...patient,
-      vitals,
+      vitals: recentVitals,
       medications,
       instructions,
       tasks,
@@ -430,7 +439,7 @@ app.post('/api/patients/:id/summary', async (req, res) => {
       generated_at: new Date().toISOString()
     };
     
-    insert('ai_summaries', summaryRecord);
+    await insert('ai_summaries', summaryRecord);
     await saveDb();
     
     res.json({ success: true, data: summary });
@@ -448,17 +457,18 @@ app.post('/api/patients/:id/discharge', async (req, res) => {
     
     const discharge_time = new Date().toISOString();
     
-    const patient = findOne('patients', p => p.patient_id === id);
+    const patient = await findOne('patients', { patient_id: id });
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
     
-    const vitals = findMany('vitals', v => v.patient_id === id).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const medications = findMany('medications', m => m.patient_id === id);
-    const instructions = findMany('doctor_instructions', i => i.patient_id === id);
-    const tasks = findMany('nurse_tasks', t => t.patient_id === id);
-    const messages = findMany('messages', m => m.patient_id === id);
-    const reports = findMany('reports', r => r.patient_id === id);
+    const vitals = await findMany('vitals', { patient_id: id });
+    vitals.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const medications = await findMany('medications', { patient_id: id });
+    const instructions = await findMany('doctor_instructions', { patient_id: id });
+    const tasks = await findMany('nurse_tasks', { patient_id: id });
+    const messages = await findMany('messages', { patient_id: id });
+    const reports = await findMany('reports', { patient_id: id });
     
     const patientData = {
       ...patient,
@@ -515,9 +525,9 @@ app.post('/api/patients/:id/discharge', async (req, res) => {
       generated_at: discharge_time
     };
     
-    insert('discharge_reports', reportRecord);
+    await insert('discharge_reports', reportRecord);
     
-    update('patients', p => p.patient_id === id, {
+    await update('patients', { patient_id: id }, {
       active: 0,
       discharge_time,
       updated_at: new Date().toISOString()
@@ -536,7 +546,8 @@ app.get('/api/patients/:id/discharge-report', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const reports = findMany('discharge_reports', r => r.patient_id === id).sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
+    const reports = await findMany('discharge_reports', { patient_id: id });
+    reports.sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
     const report = reports[0];
     
     if (!report) {
@@ -551,6 +562,41 @@ app.get('/api/patients/:id/discharge-report', async (req, res) => {
 
 // ==================== HEALTH CHECK ====================
 
+// ==================== BLOCKCHAIN ENDPOINTS ====================
+
+// Store encrypted record hash on chain
+app.post('/api/blockchain/records', async (req, res) => {
+  try {
+    const { patientId, encryptedRecord } = req.body;
+    const result = await storeEncryptedRecordHash(patientId, encryptedRecord);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Verify encrypted record hash on chain
+app.post('/api/blockchain/verify', async (req, res) => {
+  try {
+    const { patientId, encryptedRecord } = req.body;
+    const result = await verifyEncryptedRecordHash(patientId, encryptedRecord);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Log patient consent on chain
+app.post('/api/blockchain/consent', async (req, res) => {
+  try {
+    const { patientId } = req.body;
+    const result = await grantPatientConsent(patientId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'VitalGuard AI Backend is running', timestamp: new Date().toISOString() });
 });
@@ -558,6 +604,6 @@ app.get('/api/health', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 VitalGuard AI Backend running on http://localhost:${PORT}`);
-  console.log(`📊 Database: ${process.env.DATABASE_PATH || 'vitalguard.json'}`);
+  console.log(`📊 Database: ${process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017'} / ${process.env.MONGODB_DB_NAME || 'vitalguard'}`);
   console.log(`🤖 Gemini AI: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured'}`);
 });

@@ -1,13 +1,11 @@
-import { initializeDatabase, insert, saveDb } from './database-simple.js';
+import { initializeDatabase, closeDatabase, insert, saveDb } from './database-simple.js';
 
-// Initialize database
 await initializeDatabase();
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
-console.log('🌱 Seeding database with sample data...\n');
+console.log('Seeding MongoDB with sample data...');
 
-// Sample patients
 const patients = [
   {
     patient_id: generateId(),
@@ -62,21 +60,15 @@ const patients = [
   }
 ];
 
-// Insert patients
-patients.forEach(patient => {
-  insert('patients', patient);
-  console.log(`✅ Created patient: ${patient.name}`);
-});
+for (const patient of patients) {
+  await insert('patients', patient);
+}
 
-// Add vitals for monitored patients
 const monitoredPatients = patients.filter(p => p.care_mode === 'live_monitoring');
-
-monitoredPatients.forEach(patient => {
-  // Add 5 vitals readings
+for (const patient of monitoredPatients) {
   for (let i = 0; i < 5; i++) {
     const timestamp = new Date(Date.now() - (4 - i) * 60 * 60 * 1000).toISOString();
-    
-    insert('vitals', {
+    await insert('vitals', {
       vital_id: generateId(),
       patient_id: patient.patient_id,
       heart_rate: 70 + Math.floor(Math.random() * 20),
@@ -88,10 +80,8 @@ monitoredPatients.forEach(patient => {
       timestamp
     });
   }
-  console.log(`  📊 Added vitals for ${patient.name}`);
-});
+}
 
-// Add medications
 const medications = [
   { patient: patients[0], name: 'Ibuprofen', dosage: '400mg', route: 'oral', frequency: '3x daily', timing: 'after meals' },
   { patient: patients[0], name: 'Amoxicillin', dosage: '500mg', route: 'oral', frequency: '2x daily', timing: null },
@@ -101,8 +91,8 @@ const medications = [
   { patient: patients[2], name: 'Albuterol', dosage: '2 puffs', route: 'inhaled', frequency: 'as needed', timing: null }
 ];
 
-medications.forEach(med => {
-  insert('medications', {
+for (const med of medications) {
+  await insert('medications', {
     medication_id: generateId(),
     patient_id: med.patient.patient_id,
     name: med.name,
@@ -115,10 +105,8 @@ medications.forEach(med => {
     status: 'active',
     created_at: new Date().toISOString()
   });
-});
-console.log(`💊 Added ${medications.length} medications`);
+}
 
-// Add doctor instructions
 const instructions = [
   { patient: patients[0], text: 'Monitor surgical site for infection', priority: 'high', due_time: null },
   { patient: patients[0], text: 'Encourage ambulation 3x daily', priority: 'medium', due_time: null },
@@ -128,8 +116,8 @@ const instructions = [
   { patient: patients[2], text: 'Chest physiotherapy 2x daily', priority: 'medium', due_time: '9:00 AM, 5:00 PM' }
 ];
 
-instructions.forEach(inst => {
-  insert('doctor_instructions', {
+for (const inst of instructions) {
+  await insert('doctor_instructions', {
     instruction_id: generateId(),
     patient_id: inst.patient.patient_id,
     instruction_text: inst.text,
@@ -140,10 +128,8 @@ instructions.forEach(inst => {
     completed: 0,
     completed_at: null
   });
-});
-console.log(`📋 Added ${instructions.length} doctor instructions`);
+}
 
-// Add nurse tasks
 const tasks = [
   { patient: patients[0], text: 'Change surgical dressing', priority: 'high', status: 'completed' },
   { patient: patients[0], text: 'Assist with ambulation', priority: 'medium', status: 'pending' },
@@ -153,11 +139,10 @@ const tasks = [
   { patient: patients[2], text: 'Chest physiotherapy session', priority: 'medium', status: 'pending' }
 ];
 
-tasks.forEach(task => {
+for (const task of tasks) {
   const created_at = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const completed_at = task.status === 'completed' ? new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() : null;
-  
-  insert('nurse_tasks', {
+  const completed_at = task.status === 'completed' ? new Date(Date.now() - 60 * 60 * 1000).toISOString() : null;
+  await insert('nurse_tasks', {
     task_id: generateId(),
     patient_id: task.patient.patient_id,
     task_text: task.text,
@@ -169,10 +154,8 @@ tasks.forEach(task => {
     completed_at,
     completed_by: task.status === 'completed' ? 'Nurse Johnson' : null
   });
-});
-console.log(`✅ Added ${tasks.length} nurse tasks`);
+}
 
-// Add messages
 const messages = [
   { patient: patients[0], role: 'doctor', name: 'Dr. Smith', text: 'Patient is recovering well. Continue current treatment plan.' },
   { patient: patients[0], role: 'nurse', name: 'Nurse Johnson', text: 'Noted. Surgical site looks clean, no signs of infection.' },
@@ -182,8 +165,8 @@ const messages = [
   { patient: patients[2], role: 'nurse', name: 'Nurse Johnson', text: 'SpO2 levels improving. Patient breathing easier.' }
 ];
 
-messages.forEach(msg => {
-  insert('messages', {
+for (const msg of messages) {
+  await insert('messages', {
     message_id: generateId(),
     patient_id: msg.patient.patient_id,
     sender_role: msg.role,
@@ -191,18 +174,16 @@ messages.forEach(msg => {
     message_text: msg.text,
     timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString()
   });
-});
-console.log(`💬 Added ${messages.length} messages`);
+}
 
-// Add sample reports
 const reports = [
   { patient: patients[0], name: 'Pre-op Blood Work', type: 'BLOOD_TEST', findings: 'All values within normal range' },
   { patient: patients[1], name: 'HbA1c Test Results', type: 'LAB_REPORT', findings: 'HbA1c: 7.8% - indicates need for better glucose control' },
   { patient: patients[2], name: 'Chest X-Ray', type: 'XRAY', findings: 'Bilateral infiltrates consistent with pneumonia' }
 ];
 
-reports.forEach(report => {
-  insert('reports', {
+for (const report of reports) {
+  await insert('reports', {
     report_id: generateId(),
     patient_id: report.patient.patient_id,
     file_name: report.name,
@@ -211,19 +192,11 @@ reports.forEach(report => {
     findings: report.findings,
     uploaded_at: new Date().toISOString()
   });
-});
-console.log(`📄 Added ${reports.length} reports`);
+}
 
-// Save database
-await saveDb();
-
-console.log('\n✨ Database seeded successfully!');
-console.log(`\n📊 Summary:`);
-console.log(`   - ${patients.length} patients`);
-console.log(`   - ${monitoredPatients.length * 5} vitals readings`);
-console.log(`   - ${medications.length} medications`);
-console.log(`   - ${instructions.length} doctor instructions`);
-console.log(`   - ${tasks.length} nurse tasks`);
-console.log(`   - ${messages.length} messages`);
-console.log(`   - ${reports.length} reports`);
-console.log(`\n🚀 Start the server with: npm start`);
+try {
+  await saveDb();
+  console.log('Seed completed.');
+} finally {
+  await closeDatabase();
+}
