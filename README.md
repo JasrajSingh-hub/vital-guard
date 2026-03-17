@@ -221,6 +221,33 @@ npm run build
 npm run preview
 ```
 
+## Deploying To Vercel
+
+This repository can be deployed as a single Vercel project:
+
+- The React frontend is built from the repo root with `npm run build`
+- The Express backend is exposed through the Vercel serverless function at `api/[...path].js`
+- Frontend API requests use same-origin `/api` paths in production
+
+### Required Vercel Environment Variables
+
+Set these in the Vercel project before deploying:
+
+```env
+MONGODB_URI=your_mongodb_connection_string
+MONGODB_DB_NAME=vitalguard
+GEMINI_API_KEY=your_gemini_api_key
+CHAIN_RPC_URL=optional_blockchain_rpc_url
+PRIVATE_KEY=optional_blockchain_wallet_private_key
+CONTRACT_ADDRESS=optional_contract_address
+```
+
+Notes:
+
+- `MONGODB_URI` should point to a hosted database such as MongoDB Atlas. `mongodb://127.0.0.1:27017` will not work on Vercel.
+- Blockchain event listeners are automatically skipped on Vercel because serverless functions are not long-lived.
+- For local development, keep the backend running on port `5000`; Vite proxies `/api/*` requests to it automatically.
+
 ## License
 
 This project is for educational and demonstration purposes.

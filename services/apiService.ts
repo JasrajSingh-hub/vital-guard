@@ -1,8 +1,8 @@
 // API Service - Connects frontend to backend
-const API_HOST =
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_HOST) ||
-  (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
-const API_BASE_URL = `http://${API_HOST}:5000/api`;
+const configuredApiBaseUrl =
+  typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL;
+
+const API_BASE_URL = (configuredApiBaseUrl || '/api').replace(/\/$/, '');
 
 // ==================== PATIENTS ====================
 

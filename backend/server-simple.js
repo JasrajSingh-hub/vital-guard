@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { initializeDatabase, findAll, findOne, findMany, insert, update, remove, saveDb } from './database-simple.js';
 import { generatePatientSummary, generateDischargeSummary, analyzeVitals } from './geminiService.js';
 import {
@@ -14,6 +15,9 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isVercel = process.env.VERCEL === '1';
+const currentFilePath = fileURLToPath(import.meta.url);
+const entryFilePath = process.argv[1];
 
 // Middleware
 app.use(cors());
@@ -22,11 +26,14 @@ app.use(express.json({ limit: '50mb' }));
 // Initialize database
 await initializeDatabase();
 
-// Start blockchain event listeners (non-fatal if env/network is unavailable)
-try {
-  startBlockchainEventListeners();
-} catch (error) {
-  console.warn(`Blockchain listeners not started: ${error.message}`);
+// Long-lived blockchain listeners are useful for local servers,
+// but they should not run inside serverless functions.
+if (!isVercel) {
+  try {
+    startBlockchainEventListeners();
+  } catch (error) {
+    console.warn(`Blockchain listeners not started: ${error.message}`);
+  }
 }
 
 // Helper function to generate IDs
@@ -51,6 +58,9 @@ app.get('/api/patients', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+}
+
+export default app;
 
 // Get all discharged patients
 app.get('/api/patients/discharged', async (req, res) => {
@@ -651,8 +661,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start server
+if (entryFilePath === currentFilePath) {
 app.listen(PORT, () => {
   console.log(`🚀 VitalGuard AI Backend running on http://localhost:${PORT}`);
   console.log(`📊 Database: ${process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017'} / ${process.env.MONGODB_DB_NAME || 'vitalguard'}`);
   console.log(`🤖 Gemini AI: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured'}`);
 });
+}
+
+export default app;
