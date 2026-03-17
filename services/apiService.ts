@@ -1,5 +1,8 @@
 // API Service - Connects frontend to backend
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_HOST =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_HOST) ||
+  (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+const API_BASE_URL = `http://${API_HOST}:5000/api`;
 
 // ==================== PATIENTS ====================
 
@@ -25,9 +28,17 @@ export async function fetchPatient(id: string) {
 }
 
 export async function createPatient(patientData: any) {
+  const actor = patientData.__actor || null;
+  if (actor) {
+    delete patientData.__actor;
+  }
   const response = await fetch(`${API_BASE_URL}/patients`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(actor?.name ? { 'x-user-name': actor.name } : {}),
+      ...(actor?.role ? { 'x-user-role': actor.role } : {})
+    },
     body: JSON.stringify(patientData)
   });
   const data = await response.json();

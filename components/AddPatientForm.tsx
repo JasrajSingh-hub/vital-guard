@@ -6,9 +6,10 @@ import { extractReportData } from '../services/geminiService';
 interface AddPatientFormProps {
   onSubmit: (patient: Omit<Patient, 'id' | 'lastUpdated'>) => void;
   onCancel: () => void;
+  doctorOptions: Array<{ uid: string; name: string }>;
 }
 
-const AddPatientForm: React.FC<AddPatientFormProps> = ({ onSubmit, onCancel }) => {
+const AddPatientForm: React.FC<AddPatientFormProps> = ({ onSubmit, onCancel, doctorOptions }) => {
   const [patientType, setPatientType] = useState<PatientType>('CONTEXT_ONLY');
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -17,6 +18,7 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({ onSubmit, onCancel }) =
   const [room, setRoom] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
+  const [assignedDoctorUid, setAssignedDoctorUid] = useState('');
   const [uploadedReports, setUploadedReports] = useState<ReportImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -81,6 +83,7 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({ onSubmit, onCancel }) =
       patientType,
       history: [],
       riskLevel: 'STABLE',
+      assignedDoctorUid,
       context: patientType === 'CONTEXT_ONLY' ? context : undefined
     };
 
@@ -192,6 +195,23 @@ const AddPatientForm: React.FC<AddPatientFormProps> = ({ onSubmit, onCancel }) =
               placeholder="e.g., Post-operative recovery, Diabetes management"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Assign Doctor (UID) *</label>
+            <select
+              required
+              value={assignedDoctorUid}
+              onChange={(e) => setAssignedDoctorUid(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select doctor</option>
+              {doctorOptions.map((doc) => (
+                <option key={doc.uid} value={doc.uid}>
+                  {doc.name} ({doc.uid})
+                </option>
+              ))}
+            </select>
           </div>
 
           {patientType === 'CONTEXT_ONLY' && (

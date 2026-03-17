@@ -114,7 +114,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       await addInstruction(patient.id, {
         instruction_text: doctorInstruction.trim(),
         priority: instructionPriority.toLowerCase(),
-        due_time: ''
+        due_time: '',
+        created_by: `${currentUser.name} (${currentUser.uid})`
       });
       setDoctorInstruction('');
       await onUpdatePatient(patient);
@@ -320,7 +321,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         </section>
       )}
 
-      {isNurse && <PatientContextManager patient={patient} onUpdatePatient={onUpdatePatient} />}
+      {isNurse && (
+        <PatientContextManager
+          patient={patient}
+          currentUser={currentUser}
+          onUpdatePatient={onUpdatePatient}
+        />
+      )}
 
       {isNurse && !isPatient && !isContextOnly && (
         <>

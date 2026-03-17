@@ -58,14 +58,22 @@ const App: React.FC = () => {
   const scopedPatients = useMemo(() => {
     if (!currentUser) return patients;
     if (currentUser.role === 'ADMIN') return patients;
+    if (currentUser.role === 'NURSE') {
+      return patients.filter((p) => p.createdByUid === currentUser.uid);
+    }
+    if (currentUser.role === 'DOCTOR') {
+      return patients.filter((p) => p.assignedDoctorUid === currentUser.uid);
+    }
     if (currentUser.role === 'PATIENT') {
+      const byUid = patients.filter(
+        (p) =>
+          (p.patientUid || '').toUpperCase() === currentUser.uid.toUpperCase() ||
+          p.id.toUpperCase() === currentUser.uid.toUpperCase()
+      );
+      if (byUid.length > 0) return byUid;
       const assigned = currentProfile?.assignedPatientIds || [];
       if (assigned.length > 0) return patients.filter((p) => assigned.includes(p.id));
-      return patients.slice(0, 1);
-    }
-    if (currentUser.role === 'DOCTOR' || currentUser.role === 'NURSE') {
-      const assigned = currentProfile?.assignedPatientIds || [];
-      return patients.filter((p) => assigned.includes(p.id));
+      return [];
     }
     return patients;
   }, [patients, currentUser, currentProfile]);
@@ -139,7 +147,9 @@ const App: React.FC = () => {
       const data = await fetchPatients();
       const formattedPatients: Patient[] = data.map((p: any) => ({
         id: p.patient_id,
-        patientUid: formatPatientUid(String(p.patient_id)),
+        patientUid: p.patient_uid || formatPatientUid(String(p.patient_id)),
+        createdByUid: p.created_by_uid || undefined,
+        assignedDoctorUid: p.assigned_doctor_uid || undefined,
         name: p.name,
         age: p.age,
         gender: p.gender,
@@ -192,7 +202,9 @@ const App: React.FC = () => {
       const data = await fetchPatient(patientId);
       const formattedPatient: Patient = {
         id: data.patient_id,
-        patientUid: formatPatientUid(String(data.patient_id)),
+        patientUid: data.patient_uid || formatPatientUid(String(data.patient_id)),
+        createdByUid: data.created_by_uid || undefined,
+        assignedDoctorUid: data.assigned_doctor_uid || undefined,
         name: data.name,
         age: data.age,
         gender: data.gender,
@@ -235,7 +247,7 @@ const App: React.FC = () => {
           reports:
             data.reports?.map((r: any) => ({
               id: r.report_id,
-              url: '',
+              url: r.image_data_url || '',
               uploadedAt: r.uploaded_at,
               extractedData: r.extracted_text,
               type: r.report_type,
@@ -277,6 +289,14 @@ const App: React.FC = () => {
 
   const handleAddPatient = async (newPatient: Omit<Patient, 'id' | 'lastUpdated'>) => {
     try {
+      if (!currentUser || currentUser.role !== 'NURSE') {
+        alert('Only nurse users can add patients.');
+        return;
+      }
+      if (!newPatient.assignedDoctorUid) {
+        alert('Assigned doctor UID is required.');
+        return;
+      }
       const backendPatient = {
         name: newPatient.name,
         age: newPatient.age,
@@ -285,7 +305,10 @@ const App: React.FC = () => {
         condition: newPatient.condition,
         diagnosis: newPatient.context?.diagnosis || '',
         care_mode: newPatient.patientType === 'MONITORED' ? 'live_monitoring' : 'task_based',
-        notes: newPatient.context?.notes || ''
+        notes: newPatient.context?.notes || '',
+        assigned_doctor_uid: newPatient.assignedDoctorUid,
+        created_by_uid: currentUser.uid,
+        __actor: { name: currentUser.name, role: currentUser.role }
       };
       await createPatient(backendPatient);
       await loadPatients();
@@ -395,7 +418,7 @@ const App: React.FC = () => {
         onPatientClick={setSelectedPatientId}
         onAddPatient={handleAddPatient}
         onSendTeamMessage={handleSendTeamMessage}
-        pendingUsers={registeredUsers.filter((u) => u.approvalStatus === 'PENDING' && (u.role === 'DOCTOR' || u.role === 'NURSE'))}
+        pendingUsers={registeredUsers.filter((u) => u.approvalStatus === 'PENDING' && u.role === 'DOCTOR')}
         onApproveUser={handleApproveUser}
       />
     );

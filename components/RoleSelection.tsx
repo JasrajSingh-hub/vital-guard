@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserRole, User } from '../types';
 import { Stethoscope, Heart, UserCircle, ShieldCheck } from 'lucide-react';
 import { loginUser, signupUser } from '../services/authService';
+import { fetchPatients } from '../services/apiService';
 
 interface RoleSelectionProps {
   onRoleSelect: (user: User) => void;
@@ -12,6 +13,8 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onRoleSelect }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [doctorUid, setDoctorUid] = useState('');
+  const [patientUid, setPatientUid] = useState('');
   const [error, setError] = useState('');
 
   const roles: {
@@ -49,7 +52,7 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onRoleSelect }) => {
   const isValidGmail = (value: string) =>
     /^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(value.trim());
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -57,12 +60,16 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onRoleSelect }) => {
       setError('Select a role.');
       return;
     }
-    if (!isValidGmail(email)) {
+    if (selectedRole !== 'PATIENT' && !isValidGmail(email)) {
       setError('Enter a valid Gmail address.');
       return;
     }
 
     if (mode === 'SIGNUP') {
+      if (selectedRole === 'PATIENT') {
+        setError('Patient accounts are created by nurse. Use Patient UID to login.');
+        return;
+      }
       if (!name.trim()) {
         setError('Enter your name.');
         return;
@@ -78,14 +85,49 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onRoleSelect }) => {
       }
       if (result.user.approvalStatus === 'PENDING') {
         setMode('LOGIN');
-        setError('Signup complete. Wait for admin approval, then login.');
+        setDoctorUid(result.user.uid);
+        setError(`Doctor signup complete. Your UID is ${result.user.uid}. Wait for admin approval, then login.`);
         return;
       }
       onRoleSelect({ name: result.user.name, email: result.user.email, role: result.user.role });
       return;
     }
 
-    const loginResult = loginUser({ email: email.trim(), role: selectedRole });
+    if (selectedRole === 'PATIENT') {
+      const normalizedUid = patientUid.trim().toUpperCase();
+      if (!normalizedUid) {
+        setError('Enter your Patient UID.');
+        return;
+      }
+      try {
+        const allPatients = await fetchPatients();
+        const found = allPatients.find(
+          (p: any) =>
+            String(p.patient_uid || '').toUpperCase() === normalizedUid ||
+            String(p.patient_id || '').toUpperCase() === normalizedUid
+        );
+        if (!found) {
+          setError('Patient UID not found.');
+          return;
+        }
+        onRoleSelect({
+          uid: String(found.patient_uid || normalizedUid),
+          name: String(found.name || 'Patient'),
+          email: `${normalizedUid.toLowerCase()}@patient.local`,
+          role: 'PATIENT'
+        });
+      } catch (err) {
+        console.error('Patient UID lookup failed:', err);
+        setError('Unable to verify Patient UID. Please try again.');
+      }
+      return;
+    }
+
+    const loginResult = loginUser({
+      email: email.trim(),
+      role: selectedRole,
+      uid: selectedRole === 'DOCTOR' ? doctorUid : undefined
+    });
     if (!loginResult.ok) {
       setError(loginResult.error);
       return;
@@ -161,17 +203,45 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onRoleSelect }) => {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Gmail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@gmail.com"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              required
-            />
-          </div>
+          {selectedRole !== 'PATIENT' ? (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Gmail</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@gmail.com"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Patient UID</label>
+              <input
+                type="text"
+                value={patientUid}
+                onChange={(e) => setPatientUid(e.target.value)}
+                placeholder="PT-XXXXXXXX"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                required
+              />
+            </div>
+          )}
+
+          {mode === 'LOGIN' && selectedRole === 'DOCTOR' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Doctor UID</label>
+              <input
+                type="text"
+                value={doctorUid}
+                onChange={(e) => setDoctorUid(e.target.value)}
+                placeholder="DOC-0001"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                required
+              />
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-700">{error}</p>}
 
