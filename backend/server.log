@@ -1,0 +1,39 @@
+
+> vitalguard-backend@1.0.0 start
+> node server-simple.js
+
+Database initialized successfully (MongoDB)
+[Blockchain Listener] Listening for RecordStored and ConsentGranted events
+🚀 VitalGuard AI Backend running on http://localhost:5000
+📊 Database: mongodb://jasujasraj123_db_user:AIOFoQ9YQ03oQ93A@ac-3sbakyq-shard-00-00.ovmtuat.mongodb.net:27017,ac-3sbakyq-shard-00-01.ovmtuat.mongodb.net:27017,ac-3sbakyq-shard-00-02.ovmtuat.mongodb.net:27017/vitalguard?ssl=true&replicaSet=atlas-cuy0vj-shard-0&authSource=admin&retryWrites=true&w=majority&appName=vital / vitalguard
+🤖 Gemini AI: Configured
+[Blockchain Event] RecordStored: {"patientId":"0xb85ee2f01ed54d6f5967aa3811dcb55066871b62762aad02f290fbf8216829ed","recordHash":"0x76ef00d4981e1cc74eba5cb0c55184e3d32e0479a343cf90f026e64fa1a910fd","storedBy":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266","timestamp":1771548097}
+[AUDIT] Patient created by misee (NURSE) -> 1771552730978qnffypt3o (raman) assigned:DOC-0001 | on-chain tx: 0xe59a21909d2188bb5a9b824f309e1d36be962c32246276ed9151ae51a6873a4c
+[PATIENT CREATE] by misee (NURSE) -> 1771552730978qnffypt3o/PT-MLU8R7MQVUIA | raman, room 12a, doctor DOC-0001, care_mode task_based
+@TODO TypeError: results is not iterable
+    at FilterIdEventSubscriber._emitResults (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:154:30)
+    at #poll (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:88:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+@TODO TypeError: results is not iterable
+    at FilterIdEventSubscriber._emitResults (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:154:30)
+    at #poll (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:88:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[AUDIT] Patient created by misee (NURSE) -> 17715666621288e43i98zh (jassi) assigned:DOC-0001 | on-chain tx: 0x420e083a678b9eb3b0991141758f60928d2719b215bb71bc6032b538c3d0e92c
+[PATIENT CREATE] by misee (NURSE) -> 17715666621288e43i98zh/PT-MLUH1SZ4K95Q | jassi, room 12s, doctor DOC-0001, care_mode task_based
+@TODO TypeError: results is not iterable
+    at FilterIdEventSubscriber._emitResults (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:154:30)
+    at #poll (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:88:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+@TODO TypeError: results is not iterable
+    at FilterIdEventSubscriber._emitResults (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:154:30)
+    at #poll (file:///D:/ggi/vital-guard/backend/node_modules/ethers/lib.esm/providers/subscriber-filterid.js:88:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+^C^C
+> vitalguard-backend@1.0.0 start
+> node server-simple.js
+
+Database initialized successfully (MongoDB)
+[Blockchain Listener] Listening for RecordStored and ConsentGranted events
+🚀 VitalGuard AI Backend running on http://localhost:5000
+📊 Database: mongodb://jasujasraj123_db_user:AIOFoQ9YQ03oQ93A@ac-3sbakyq-shard-00-00.ovmtuat.mongodb.net:27017,ac-3sbakyq-shard-00-01.ovmtuat.mongodb.net:27017,ac-3sbakyq-shard-00-02.ovmtuat.mongodb.net:27017/vitalguard?ssl=true&replicaSet=atlas-cuy0vj-shard-0&authSource=admin&retryWrites=true&w=majority&appName=vital / vitalguard
+🤖 Gemini AI: Configured

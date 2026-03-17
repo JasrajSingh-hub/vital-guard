@@ -77,6 +77,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [scopedPatients]);
 
   const patientSelf = isPatient ? scopedPatients[0] : null;
+  const availableDoctors = useMemo(
+    () =>
+      staff
+        .filter((u) => u.role === 'DOCTOR' && u.approvalStatus === 'APPROVED')
+        .map((u) => ({ uid: u.uid, name: u.name })),
+    [staff]
+  );
 
   const handleAddPatient = (newPatient: Omit<Patient, 'id' | 'lastUpdated'>) => {
     onAddPatient(newPatient);
@@ -127,6 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           {isNurse && (
             <button
               onClick={() => setShowAddPatient(true)}
+              disabled={availableDoctors.length === 0}
               className="flex items-center px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800 transition-colors"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -237,7 +245,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {showAddPatient && (
-        <AddPatientForm onSubmit={handleAddPatient} onCancel={() => setShowAddPatient(false)} />
+        <AddPatientForm
+          onSubmit={handleAddPatient}
+          onCancel={() => setShowAddPatient(false)}
+          doctorOptions={availableDoctors}
+        />
       )}
 
       {showTasks && !isPatient && (

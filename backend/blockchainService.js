@@ -1,12 +1,17 @@
-import crypto from "crypto";
+                                                                                                                            import crypto from "crypto";
 import { ethers } from "ethers";
 import "dotenv/config";
 
 const CONTRACT_ABI = [
+  "event RecordStored(string indexed patientId, bytes32 indexed recordHash, address indexed storedBy, uint256 timestamp)",
+  "event ConsentGranted(string indexed patientId, address indexed grantedBy, uint256 timestamp)",
   "function storeRecordHash(string patientId, bytes32 recordHash) external",
   "function grantConsent(string patientId) external",
   "function verifyRecordHash(string patientId, bytes32 recordHash) external view returns (bool)"
 ];
+
+let cachedContract = null;
+let listenersAttached = false;
 
 function getConfig() {
   const rpcUrl = process.env.CHAIN_RPC_URL || process.env.SEPOLIA_RPC_URL || "http://127.0.0.1:8545";
@@ -21,10 +26,15 @@ function getConfig() {
 }
 
 function getContract() {
+  if (cachedContract) {
+    return cachedContract;
+  }
+
   const { rpcUrl, privateKey, contractAddress } = getConfig();
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
-  return new ethers.Contract(contractAddress, CONTRACT_ABI, wallet);
+  cachedContract = new ethers.Contract(contractAddress, CONTRACT_ABI, wallet);
+  return cachedContract;
 }
 
 export function sha256Hex(encryptedRecord) {
@@ -77,4 +87,43 @@ export async function verifyEncryptedRecordHash(patientId, encryptedRecord) {
     recordHash: hashBytes32,
     exists
   };
+}
+
+export function startBlockchainEventListeners() {
+  if (listenersAttached) return;
+
+  const contract = getContract();
+
+  contract.on("RecordStored", (patientId, recordHash, storedBy, timestamp) => {
+    // `patientId` is indexed in the contract, so it can arrive as a hash-like object.
+    const patientRef =
+      typeof patientId === "string" ? patientId : patientId?.hash || String(patientId);
+
+    console.log(
+      "[Blockchain Event] RecordStored:",
+      JSON.stringify({
+        patientId: patientRef,
+        recordHash,
+        storedBy,
+        timestamp: Number(timestamp)
+      })
+    );
+  });
+
+  contract.on("ConsentGranted", (patientId, grantedBy, timestamp) => {
+    const patientRef =
+      typeof patientId === "string" ? patientId : patientId?.hash || String(patientId);
+
+    console.log(
+      "[Blockchain Event] ConsentGranted:",
+      JSON.stringify({
+        patientId: patientRef,
+        grantedBy,
+        timestamp: Number(timestamp)
+      })
+    );
+  });
+
+  listenersAttached = true;
+  console.log("[Blockchain Listener] Listening for RecordStored and ConsentGranted events");
 }

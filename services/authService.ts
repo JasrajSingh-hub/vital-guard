@@ -29,6 +29,13 @@ const saveUsers = (users: StoredUser[]) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
 };
 
+const normalizeUid = (value: string): string => {
+  const raw = value.trim().toUpperCase().replace(/\s+/g, '');
+  const match = raw.match(/^([A-Z]{3})-?(\d{4})$/);
+  if (!match) return raw;
+  return `${match[1]}-${match[2]}`;
+};
+
 export const signupUser = (payload: {
   name: string;
   email: string;
@@ -41,8 +48,7 @@ export const signupUser = (payload: {
   );
   if (exists) return { ok: false, error: 'Account already exists. Use Login.' };
 
-  const approvalStatus =
-    payload.role === 'DOCTOR' || payload.role === 'NURSE' ? 'PENDING' : 'APPROVED';
+  const approvalStatus = payload.role === 'DOCTOR' ? 'PENDING' : 'APPROVED';
 
   const user: StoredUser = {
     uid: createUid(payload.role, users),
@@ -61,15 +67,34 @@ export const signupUser = (payload: {
 export const loginUser = (payload: {
   email: string;
   role: UserRole;
+  uid?: string;
 }): { ok: true; user: User } | { ok: false; error: string } => {
   const users = getStoredUsers();
   const normalizedEmail = payload.email.trim().toLowerCase();
-  const found = users.find(
+  let found = users.find(
     (u) => u.email.toLowerCase() === normalizedEmail && u.role === payload.role
   );
   if (!found) return { ok: false, error: 'No account found. Please Sign Up first.' };
+  // Backward compatibility: older nurse accounts may still be marked pending.
+  if (found.role === 'NURSE' && found.approvalStatus === 'PENDING') {
+    const upgradedUsers = users.map((u) =>
+      u.uid === found.uid ? { ...u, approvalStatus: 'APPROVED' as const, statusMessage: 'Active' } : u
+    );
+    saveUsers(upgradedUsers);
+    found = upgradedUsers.find((u) => u.uid === found.uid) as StoredUser;
+  }
   if (found.approvalStatus === 'PENDING') {
-    return { ok: false, error: 'Your account is pending admin approval.' };
+    return { ok: false, error: 'Doctor account is pending admin approval.' };
+  }
+  if (found.role === 'DOCTOR') {
+    const providedUid = normalizeUid(payload.uid || '');
+    const expectedUid = normalizeUid(found.uid);
+    if (!providedUid) {
+      return { ok: false, error: 'Doctor UID is required for login.' };
+    }
+    if (providedUid !== expectedUid) {
+      return { ok: false, error: 'Invalid Doctor UID. Use the UID shown in Admin > Find Staff By UID.' };
+    }
   }
   return {
     ok: true,

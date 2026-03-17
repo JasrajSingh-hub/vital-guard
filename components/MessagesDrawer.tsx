@@ -10,6 +10,7 @@ import {
   HeartPulse,
   ShieldCheck
 } from 'lucide-react';
+import { addMessage } from '../services/apiService';
 
 interface MessagesDrawerProps {
   patient: Patient;
@@ -31,32 +32,21 @@ const MessagesDrawer: React.FC<MessagesDrawerProps> = ({
 
   const messages = patient.context?.messages || [];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-
-    const message = {
-      id: Date.now().toString(),
-      patientId: patient.id,
-      role: currentUser.role,
-      userName: currentUser.name,
-      message: newMessage.trim(),
-      timestamp: new Date().toISOString(),
-      type: replyingTo ? ('REPLY' as const) : ('COMMENT' as const),
-      replyTo: replyingTo || undefined
-    };
-
-    const updatedContext = {
-      ...patient.context,
-      messages: [...messages, message]
-    };
-
-    onUpdatePatient({
-      ...patient,
-      context: updatedContext as any
-    });
-
-    setNewMessage('');
-    setReplyingTo(null);
+    try {
+      await addMessage(patient.id, {
+        sender_role: currentUser.role.toLowerCase(),
+        sender_name: `${currentUser.name} (${currentUser.uid})`,
+        message_text: newMessage.trim()
+      });
+      await onUpdatePatient(patient);
+      setNewMessage('');
+      setReplyingTo(null);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message.');
+    }
   };
 
   const getReplyToMessage = (messageId: string) => messages.find((m) => m.id === messageId);

@@ -123,7 +123,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, patients, staffUse
       <article className="bg-white border border-slate-200 rounded-xl p-5">
         <h2 className="text-lg font-semibold text-slate-900">Pending Staff Approvals</h2>
         <p className="text-sm text-slate-600 mt-1">
-          Doctor and Nurse accounts require admin approval before login.
+          Doctor accounts require admin approval before login.
         </p>
         <div className="mt-4 space-y-3">
           {pendingUsers.length === 0 && (

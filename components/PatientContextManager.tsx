@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { Patient, ReportImage, Medication, DoctorInstruction } from '../types';
+import { Patient, ReportImage, Medication, DoctorInstruction, User } from '../types';
 import { Upload, FileText, Eye, X, Plus, Pill, ClipboardList } from 'lucide-react';
 import { extractReportData } from '../services/geminiService';
+import { addInstruction, addMedication, addReport, deleteInstruction, deleteMedication, deleteReport } from '../services/apiService';
 
 interface PatientContextManagerProps {
   patient: Patient;
+  currentUser?: User;
   onUpdatePatient: (updatedPatient: Patient) => void;
 }
 
-const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, onUpdatePatient }) => {
+const PatientContextManager: React.FC<PatientContextManagerProps> = ({
+  patient,
+  currentUser,
+  onUpdatePatient
+}) => {
   const [isExtracting, setIsExtracting] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<ReportImage | null>(null);
   
@@ -39,125 +45,116 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
 
     setIsExtracting(true);
 
-    try {
-      // Create a data URL for the image
-      const reader = new FileReader();
-      reader.onload = async (event) => {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
         const imageUrl = event.target?.result as string;
-        
-        // Extract data using AI (for information only, not auto-adding)
         const extractedData = await extractReportData(imageUrl);
-        
-        const newReport: ReportImage = {
-          id: Date.now().toString(),
-          url: imageUrl,
-          uploadedAt: new Date().toISOString(),
-          extractedData: extractedData.rawText,
-          type: 'OTHER', // Default, can be changed by user
-          findings: extractedData.rawText
-        };
 
-        const updatedContext = {
-          ...context,
-          reports: [...context.reports, newReport]
-        };
+        await addReport(patient.id, {
+          file_name: file.name,
+          report_type: 'OTHER',
+          extracted_text: extractedData.rawText || '',
+          findings: extractedData.diagnosis || extractedData.rawText || '',
+          image_data_url: imageUrl
+        });
 
-        onUpdatePatient({ ...patient, context: updatedContext });
+        await onUpdatePatient(patient);
+        alert('Document uploaded successfully. It is now stored in backend records.');
+      } catch (error) {
+        console.error('Error processing image:', error);
+        alert('Error uploading document. Please try again.');
+      } finally {
         setIsExtracting(false);
-        
-        // Show success message - info is stored for AI summary, not auto-added
-        alert(`✅ Document uploaded successfully!\n\nExtracted information has been stored and will be used by AI when generating patient summaries.\n\nYou can manually add medications or instructions using the forms below.`);
-      };
-      
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error('Error processing image:', error);
+      }
+    };
+
+    reader.onerror = () => {
       setIsExtracting(false);
-      alert('❌ Error uploading document. Please try again.');
-    }
+      alert('Error reading file.');
+    };
+
+    reader.readAsDataURL(file);
   };
 
-  const handleDeleteReport = (reportId: string) => {
+  const handleDeleteReport = async (reportId: string) => {
     if (confirm('Are you sure you want to delete this document?')) {
-      const updatedContext = {
-        ...context,
-        reports: context.reports.filter((r: ReportImage) => r.id !== reportId)
-      };
-      onUpdatePatient({ ...patient, context: updatedContext });
+      try {
+        await deleteReport(reportId);
+        await onUpdatePatient(patient);
+      } catch (error) {
+        console.error('Error deleting report:', error);
+        alert('Failed to delete report.');
+      }
     }
   };
 
-  const handleAddMedication = (e: React.FormEvent) => {
+  const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const newMedication: Medication = {
-      id: Date.now().toString(),
-      name: medName,
-      dosage: medDosage,
-      frequency: medFrequency,
-      route: medRoute,
-      timing: medTiming || undefined
-    };
 
-    const updatedContext = {
-      ...context,
-      medications: [...context.medications, newMedication]
-    };
-
-    onUpdatePatient({ ...patient, context: updatedContext });
-    
-    // Reset form
-    setMedName('');
-    setMedDosage('');
-    setMedFrequency('');
-    setMedRoute('oral');
-    setMedTiming('');
-    setShowMedicationForm(false);
+    try {
+      await addMedication(patient.id, {
+        name: medName,
+        dosage: medDosage,
+        frequency: medFrequency,
+        route: medRoute,
+        timing: medTiming || ''
+      });
+      setMedName('');
+      setMedDosage('');
+      setMedFrequency('');
+      setMedRoute('oral');
+      setMedTiming('');
+      setShowMedicationForm(false);
+      await onUpdatePatient(patient);
+    } catch (error) {
+      console.error('Error adding medication:', error);
+      alert('Failed to add medication.');
+    }
   };
 
-  const handleDeleteMedication = (medId: string) => {
+  const handleDeleteMedication = async (medId: string) => {
     if (confirm('Remove this medication?')) {
-      const updatedContext = {
-        ...context,
-        medications: context.medications.filter((m: Medication) => m.id !== medId)
-      };
-      onUpdatePatient({ ...patient, context: updatedContext });
+      try {
+        await deleteMedication(medId);
+        await onUpdatePatient(patient);
+      } catch (error) {
+        console.error('Error deleting medication:', error);
+        alert('Failed to delete medication.');
+      }
     }
   };
 
-  const handleAddInstruction = (e: React.FormEvent) => {
+  const handleAddInstruction = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const newInstruction: DoctorInstruction = {
-      id: Date.now().toString(),
-      instruction: instruction,
-      priority: priority,
-      dueTime: dueTime || undefined,
-      createdAt: new Date().toISOString(),
-      createdBy: 'Doctor'
-    };
 
-    const updatedContext = {
-      ...context,
-      doctorInstructions: [...context.doctorInstructions, newInstruction]
-    };
-
-    onUpdatePatient({ ...patient, context: updatedContext });
-    
-    // Reset form
-    setInstruction('');
-    setPriority('MEDIUM');
-    setDueTime('');
-    setShowInstructionForm(false);
+    try {
+      await addInstruction(patient.id, {
+        instruction_text: instruction,
+        priority: priority.toLowerCase(),
+        due_time: dueTime || '',
+        created_by: currentUser ? `${currentUser.name} (${currentUser.uid})` : 'NURSE-ENTRY'
+      });
+      setInstruction('');
+      setPriority('MEDIUM');
+      setDueTime('');
+      setShowInstructionForm(false);
+      await onUpdatePatient(patient);
+    } catch (error) {
+      console.error('Error adding instruction:', error);
+      alert('Failed to add instruction.');
+    }
   };
 
-  const handleDeleteInstruction = (instId: string) => {
+  const handleDeleteInstruction = async (instId: string) => {
     if (confirm('Remove this instruction?')) {
-      const updatedContext = {
-        ...context,
-        doctorInstructions: context.doctorInstructions.filter((i: DoctorInstruction) => i.id !== instId)
-      };
-      onUpdatePatient({ ...patient, context: updatedContext });
+      try {
+        await deleteInstruction(instId);
+        await onUpdatePatient(patient);
+      } catch (error) {
+        console.error('Error deleting instruction:', error);
+        alert('Failed to delete instruction.');
+      }
     }
   };
 
@@ -481,13 +478,19 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="mb-4">
-                <img
-                  src={viewingDocument.url}
-                  alt="Document"
-                  className="w-full rounded-lg border-2 border-gray-300 shadow-lg"
-                />
-              </div>
+              {viewingDocument.url ? (
+                <div className="mb-4">
+                  <img
+                    src={viewingDocument.url}
+                    alt="Document"
+                    className="w-full rounded-lg border-2 border-gray-300 shadow-lg"
+                  />
+                </div>
+              ) : (
+                <div className="mb-4 rounded-lg border-2 border-dashed border-gray-300 p-6 text-sm text-gray-600">
+                  Image preview unavailable for this stored report. Use extracted text below.
+                </div>
+              )}
 
               {viewingDocument.extractedData && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -516,3 +519,4 @@ const PatientContextManager: React.FC<PatientContextManagerProps> = ({ patient, 
 };
 
 export default PatientContextManager;
+

@@ -3,7 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, findAll, findOne, findMany, insert, update, remove, saveDb } from './database-simple.js';
 import { generatePatientSummary, generateDischargeSummary, analyzeVitals } from './geminiService.js';
-import { grantPatientConsent, storeEncryptedRecordHash, verifyEncryptedRecordHash } from './blockchainService.js';
+import {
+  grantPatientConsent,
+  startBlockchainEventListeners,
+  storeEncryptedRecordHash,
+  verifyEncryptedRecordHash
+} from './blockchainService.js';
 
 dotenv.config();
 
@@ -17,8 +22,22 @@ app.use(express.json({ limit: '50mb' }));
 // Initialize database
 await initializeDatabase();
 
+// Start blockchain event listeners (non-fatal if env/network is unavailable)
+try {
+  startBlockchainEventListeners();
+} catch (error) {
+  console.warn(`Blockchain listeners not started: ${error.message}`);
+}
+
 // Helper function to generate IDs
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
+const generatePatientUid = () => `PT-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+
+function getActor(req) {
+  const name = req.headers['x-user-name'] || req.body?.created_by || 'unknown-user';
+  const role = req.headers['x-user-role'] || req.body?.created_role || 'UNKNOWN';
+  return { name: String(name), role: String(role) };
+}
 
 // ==================== PATIENT ENDPOINTS ====================
 
@@ -90,10 +109,12 @@ app.get('/api/patients/:id', async (req, res) => {
 // Create new patient
 app.post('/api/patients', async (req, res) => {
   try {
-    const { name, age, gender, room, condition, diagnosis, care_mode, notes } = req.body;
+    const { name, age, gender, room, condition, diagnosis, care_mode, notes, assigned_doctor_uid, created_by_uid } = req.body;
+    const actor = getActor(req);
     
     const patient = {
       patient_id: generateId(),
+      patient_uid: generatePatientUid(),
       name,
       age,
       gender,
@@ -101,6 +122,8 @@ app.post('/api/patients', async (req, res) => {
       condition,
       diagnosis: diagnosis || null,
       care_mode,
+      assigned_doctor_uid: assigned_doctor_uid || null,
+      created_by_uid: created_by_uid || null,
       status: 'stable',
       admission_time: new Date().toISOString(),
       discharge_time: null,
@@ -111,6 +134,31 @@ app.post('/api/patients', async (req, res) => {
     };
     
     await insert('patients', patient);
+
+    // Optional blockchain proof on patient creation (non-fatal if chain is unavailable)
+    try {
+      const proofPayload = JSON.stringify({
+        patient_id: patient.patient_id,
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        room: patient.room,
+        condition: patient.condition,
+        created_at: patient.created_at
+      });
+      const proof = await storeEncryptedRecordHash(patient.patient_id, proofPayload);
+      console.log(
+        `[AUDIT] Patient created by ${actor.name} (${actor.role}) -> ${patient.patient_id} (${patient.name}) assigned:${patient.assigned_doctor_uid || 'none'} | on-chain tx: ${proof.transactionHash}`
+      );
+    } catch (chainError) {
+      console.warn(
+        `[AUDIT] Patient created by ${actor.name} (${actor.role}) -> ${patient.patient_id} (${patient.name}) | blockchain write skipped: ${chainError.message}`
+      );
+    }
+
+    console.log(
+      `[PATIENT CREATE] by ${actor.name} (${actor.role}) -> ${patient.patient_id}/${patient.patient_uid} | ${patient.name}, room ${patient.room}, doctor ${patient.assigned_doctor_uid || 'none'}, care_mode ${patient.care_mode}`
+    );
     await saveDb();
     
     res.json({ success: true, data: patient });
@@ -363,7 +411,7 @@ app.post('/api/patients/:id/messages', async (req, res) => {
 app.post('/api/patients/:id/reports', async (req, res) => {
   try {
     const { id } = req.params;
-    const { file_name, report_type, extracted_text, findings } = req.body;
+    const { file_name, report_type, extracted_text, findings, image_data_url } = req.body;
     
     const report = {
       report_id: generateId(),
@@ -372,6 +420,7 @@ app.post('/api/patients/:id/reports', async (req, res) => {
       report_type,
       extracted_text: extracted_text || null,
       findings: findings || null,
+      image_data_url: image_data_url || null,
       uploaded_at: new Date().toISOString()
     };
     

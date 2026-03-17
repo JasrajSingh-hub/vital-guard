@@ -146,6 +146,8 @@ export interface PatientContext {
 export interface Patient {
   id: string;
   patientUid?: string;
+  createdByUid?: string;
+  assignedDoctorUid?: string;
   name: string;
   age: number;
   gender: 'Male' | 'Female' | 'Other';
